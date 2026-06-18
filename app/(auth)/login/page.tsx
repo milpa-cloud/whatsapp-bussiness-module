@@ -29,8 +29,6 @@ export default function LoginPage() {
     }
   }
 
-  const tallerName = process.env.NEXT_PUBLIC_TALLER_NAME
-
   return (
     <div className="w-full max-w-sm">
       <div className="bg-white rounded-2xl border border-stone-200 p-8">
@@ -38,10 +36,7 @@ export default function LoginPage() {
           <div className="w-10 h-10 bg-stone-900 rounded-xl flex items-center justify-center mb-3">
             <LogoMark size={18} color="#fafaf9" />
           </div>
-          <h1 className="text-base font-semibold text-stone-900">Taller</h1>
-          {tallerName && (
-            <p className="text-sm text-stone-400 mt-0.5">{tallerName}</p>
-          )}
+          <h1 className="text-base font-semibold text-stone-900">Milpa</h1>
         </div>
 
         <form onSubmit={handleLogin} className="space-y-4">
