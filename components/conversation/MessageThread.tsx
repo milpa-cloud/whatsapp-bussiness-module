@@ -23,24 +23,47 @@ function formatDateLabel(dateStr: string): string {
   return date.toLocaleDateString('es-MX', { day: '2-digit', month: 'long', year: 'numeric' })
 }
 
+function escapeRegex(str: string) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+function highlightText(text: string, query: string) {
+  if (!query.trim()) return <>{text}</>
+  const parts = text.split(new RegExp(`(${escapeRegex(query)})`, 'gi'))
+  return (
+    <>
+      {parts.map((part, i) =>
+        part.toLowerCase() === query.toLowerCase() ? (
+          <mark key={i} className="bg-yellow-200 text-stone-900 rounded-sm">{part}</mark>
+        ) : (
+          part
+        )
+      )}
+    </>
+  )
+}
+
 export default function MessageThread({
   conversationId,
   initialMessages,
+  searchQuery = '',
 }: {
   conversationId: string
   initialMessages: Message[]
+  searchQuery?: string
 }) {
   const [messages, setMessages] = useState<Message[]>(initialMessages)
   const bottomRef = useRef<HTMLDivElement>(null)
   const supabase = createClient()
+  const isSearching = searchQuery.trim().length > 0
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'instant' })
-  }, [])
+    if (!isSearching) bottomRef.current?.scrollIntoView({ behavior: 'instant' })
+  }, [isSearching])
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages.length])
+    if (!isSearching) bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages.length, isSearching])
 
   useEffect(() => {
     const channel = supabase
@@ -62,8 +85,14 @@ export default function MessageThread({
     return () => { supabase.removeChannel(channel) }
   }, [conversationId, supabase])
 
+  const visibleMessages = isSearching
+    ? messages.filter((m) =>
+        m.content?.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : messages
+
   const grouped: { label: string; messages: Message[] }[] = []
-  for (const msg of messages) {
+  for (const msg of visibleMessages) {
     const label = formatDateLabel(msg.created_at)
     const last = grouped[grouped.length - 1]
     if (last?.label === label) {
@@ -75,6 +104,17 @@ export default function MessageThread({
 
   return (
     <div className="flex-1 overflow-y-auto px-4 py-4 space-y-1 bg-stone-50">
+      {/* Banner de resultados */}
+      {isSearching && (
+        <div className="flex items-center justify-center mb-2">
+          <span className="text-xs text-stone-400 bg-stone-100 px-3 py-1 rounded-full">
+            {visibleMessages.length === 0
+              ? 'Sin resultados'
+              : `${visibleMessages.length} ${visibleMessages.length === 1 ? 'mensaje' : 'mensajes'}`}
+          </span>
+        </div>
+      )}
+
       {grouped.map(({ label, messages: dayMsgs }) => (
         <div key={label}>
           <div className="flex items-center justify-center my-3">
@@ -96,7 +136,7 @@ export default function MessageThread({
                   }`}
                 >
                   <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">
-                    {msg.content}
+                    {highlightText(msg.content ?? '', searchQuery)}
                   </p>
                   <p
                     className={`text-xs mt-1 text-right ${

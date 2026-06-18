@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, MoreVertical, Archive, ArchiveRestore, Tag, X, Check } from 'lucide-react'
+import { ArrowLeft, MoreVertical, Archive, ArchiveRestore, Tag, X, Check, Search } from 'lucide-react'
 import type { Contact, Label } from '@/types'
 import { getAvatarColor } from '@/lib/avatar-color'
 import { getLabelColor } from '@/lib/label-color'
@@ -14,18 +14,24 @@ export default function ConversationHeader({
   status,
   allLabels,
   initialLabelIds,
+  searchQuery,
+  onSearchChange,
 }: {
   conversationId: string
   contact: Contact | null
   status: string
   allLabels: Label[]
   initialLabelIds: string[]
+  searchQuery: string
+  onSearchChange: (q: string) => void
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [labelPickerOpen, setLabelPickerOpen] = useState(false)
+  const [searchOpen, setSearchOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [appliedLabelIds, setAppliedLabelIds] = useState<string[]>(initialLabelIds)
   const menuRef = useRef<HTMLDivElement>(null)
+  const searchInputRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
 
   const displayName = contact?.name ?? contact?.phone ?? 'Desconocido'
@@ -42,6 +48,21 @@ export default function ConversationHeader({
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
+
+  useEffect(() => {
+    if (searchOpen) {
+      searchInputRef.current?.focus()
+    }
+  }, [searchOpen])
+
+  function openSearch() {
+    setSearchOpen(true)
+  }
+
+  function closeSearch() {
+    setSearchOpen(false)
+    onSearchChange('')
+  }
 
   async function handleArchive() {
     setLoading(true)
@@ -69,8 +90,9 @@ export default function ConversationHeader({
 
   return (
     <>
-      <header className="px-4 py-3 border-b border-stone-200 bg-white shrink-0">
-        <div className="flex items-center gap-3">
+      <header className="border-b border-stone-200 bg-white shrink-0">
+        {/* Fila principal */}
+        <div className="px-4 py-3 flex items-center gap-3">
           <Link
             href="/bandeja"
             className="md:hidden flex items-center justify-center w-8 h-8 -ml-1 rounded-full hover:bg-stone-100 transition-colors"
@@ -109,6 +131,20 @@ export default function ConversationHeader({
             </span>
           )}
 
+          {/* Buscar */}
+          <button
+            onClick={openSearch}
+            className={`w-8 h-8 flex items-center justify-center rounded-full transition-colors ${
+              searchOpen
+                ? 'bg-stone-900 text-white'
+                : 'hover:bg-stone-100 text-stone-500'
+            }`}
+            aria-label="Buscar en conversación"
+          >
+            <Search size={15} />
+          </button>
+
+          {/* Menú ··· */}
           <div className="relative shrink-0" ref={menuRef}>
             <button
               onClick={() => setMenuOpen((v) => !v)}
@@ -141,6 +177,31 @@ export default function ConversationHeader({
             )}
           </div>
         </div>
+
+        {/* Barra de búsqueda (colapsable) */}
+        {searchOpen && (
+          <div className="px-4 pb-3 flex items-center gap-2">
+            <div className="relative flex-1">
+              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none" />
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={searchQuery}
+                onChange={(e) => onSearchChange(e.target.value)}
+                onKeyDown={(e) => e.key === 'Escape' && closeSearch()}
+                placeholder="Buscar mensajes…"
+                className="w-full pl-8 pr-3 py-2 text-sm bg-stone-100 rounded-xl border-0 outline-none focus:ring-1 focus:ring-stone-300 placeholder:text-stone-400 text-stone-800"
+              />
+            </div>
+            <button
+              onClick={closeSearch}
+              className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-stone-100 text-stone-500 transition-colors shrink-0"
+              aria-label="Cerrar búsqueda"
+            >
+              <X size={15} />
+            </button>
+          </div>
+        )}
       </header>
 
       {/* Label Picker */}

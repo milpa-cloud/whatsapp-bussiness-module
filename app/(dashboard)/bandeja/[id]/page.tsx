@@ -2,9 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { notFound } from 'next/navigation'
 import { createServiceClient } from '@/lib/supabase/server'
-import ConversationHeader from '@/components/conversation/ConversationHeader'
-import MessageThread from '@/components/conversation/MessageThread'
-import MessageInput from '@/components/conversation/MessageInput'
+import ConversationShell from '@/components/conversation/ConversationShell'
 import type { Contact, Message, Label } from '@/types'
 
 export default async function ConversationPage({ params }: { params: { id: string } }) {
@@ -37,19 +35,13 @@ export default async function ConversationPage({ params }: { params: { id: strin
   const initialLabelIds = (convLabels ?? []).map((r) => r.label_id)
 
   return (
-    <div className="h-full flex flex-col bg-stone-50">
-      <ConversationHeader
-        conversationId={params.id}
-        contact={contact}
-        status={conversation.status}
-        allLabels={(allLabels ?? []) as Label[]}
-        initialLabelIds={initialLabelIds}
-      />
-      <MessageThread
-        conversationId={params.id}
-        initialMessages={(messages ?? []) as Message[]}
-      />
-      <MessageInput conversationId={params.id} />
-    </div>
+    <ConversationShell
+      conversationId={params.id}
+      contact={contact}
+      status={conversation.status}
+      initialMessages={(messages ?? []) as Message[]}
+      allLabels={(allLabels ?? []) as Label[]}
+      initialLabelIds={initialLabelIds}
+    />
   )
 }
