@@ -1,19 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { sendTextMessage } from '@/lib/whatsapp'
-import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/server'
 
 interface SendMessageBody {
   conversation_id: string
   content: string
 }
 
+// TODO (Semana 2): reactivar auth con Supabase Auth
 export async function POST(request: NextRequest) {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-  }
+  const supabase = createServiceClient()
 
   let body: SendMessageBody
   try {
@@ -27,7 +23,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Faltan campos requeridos' }, { status: 400 })
   }
 
-  // Obtener el teléfono del contacto
   const { data: conversation } = await supabase
     .from('conversations')
     .select('contact_id, contacts(phone)')
@@ -44,10 +39,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Contacto sin número de teléfono' }, { status: 400 })
   }
 
-  // Enviar por WhatsApp
   await sendTextMessage(phone, content.trim())
 
-  // Guardar en DB
   const { data: message, error } = await supabase
     .from('messages')
     .insert({
@@ -63,7 +56,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Error guardando mensaje' }, { status: 500 })
   }
 
-  // Actualizar timestamp de conversación y cambiar a modo humano si era bot
   await supabase
     .from('conversations')
     .update({ last_message_at: new Date().toISOString(), mode: 'human' })
