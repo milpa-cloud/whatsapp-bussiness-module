@@ -1,14 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { sendTextMessage } from '@/lib/whatsapp'
-import { createServiceClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
 
 interface SendMessageBody {
   conversation_id: string
   content: string
 }
 
-// TODO (Semana 2): reactivar auth con Supabase Auth
 export async function POST(request: NextRequest) {
+  const authClient = await createClient()
+  const { data: { user } } = await authClient.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+
   const supabase = createServiceClient()
 
   let body: SendMessageBody
