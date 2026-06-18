@@ -43,6 +43,49 @@ function highlightText(text: string, query: string) {
   )
 }
 
+function renderMedia(mediaUrl: string, isOutbound: boolean) {
+  const isImage = /\.(jpg|jpeg|png|webp|gif)$/i.test(mediaUrl)
+  const isVideo = /\.mp4$/i.test(mediaUrl)
+  const isAudio = /\.(ogg|mp3|m4a|aac)$/i.test(mediaUrl)
+
+  if (isImage) {
+    return (
+      <a href={mediaUrl} target="_blank" rel="noopener noreferrer" className="block">
+        <img
+          src={mediaUrl}
+          alt="Imagen"
+          className="rounded-xl max-w-full object-cover"
+          style={{ maxHeight: 280 }}
+        />
+      </a>
+    )
+  }
+  if (isVideo) {
+    return (
+      <video controls className="rounded-xl max-w-full" style={{ maxHeight: 280 }}>
+        <source src={mediaUrl} />
+      </video>
+    )
+  }
+  if (isAudio) {
+    return (
+      <audio controls className="w-full max-w-xs">
+        <source src={mediaUrl} />
+      </audio>
+    )
+  }
+  return (
+    <a
+      href={mediaUrl}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={`flex items-center gap-2 text-sm underline ${isOutbound ? 'text-emerald-100' : 'text-stone-600'}`}
+    >
+      📄 Ver archivo
+    </a>
+  )
+}
+
 export default function MessageThread({
   conversationId,
   initialMessages,
@@ -135,9 +178,15 @@ export default function MessageThread({
                       : 'bg-white text-stone-800 rounded-bl-sm border border-stone-100'
                   }`}
                 >
-                  <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">
-                    {highlightText(msg.content ?? '', searchQuery)}
-                  </p>
+                  {msg.media_url && renderMedia(msg.media_url, msg.direction === 'outbound')}
+                  {msg.content && (
+                    <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">
+                      {highlightText(msg.content, searchQuery)}
+                    </p>
+                  )}
+                  {!msg.media_url && !msg.content && (
+                    <p className="text-sm text-stone-400 italic">Mensaje sin contenido</p>
+                  )}
                   <p
                     className={`text-xs mt-1 text-right ${
                       msg.direction === 'outbound' ? 'text-emerald-200' : 'text-stone-400'

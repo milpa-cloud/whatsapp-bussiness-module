@@ -29,6 +29,29 @@ export async function sendTextMessage(to: string, text: string): Promise<void> {
   }
 }
 
+export async function downloadMediaBuffer(
+  mediaId: string
+): Promise<{ buffer: Buffer; mimeType: string }> {
+  const accessToken = process.env.WHATSAPP_ACCESS_TOKEN
+  if (!accessToken) throw new Error('Missing WHATSAPP_ACCESS_TOKEN')
+
+  // Paso 1: obtener URL de descarga temporal de Meta
+  const infoRes = await fetch(`${BASE_URL}/${mediaId}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  })
+  if (!infoRes.ok) throw new Error(`Meta media info error: ${infoRes.status}`)
+  const { url, mime_type } = (await infoRes.json()) as { url: string; mime_type: string }
+
+  // Paso 2: descargar el archivo
+  const fileRes = await fetch(url, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  })
+  if (!fileRes.ok) throw new Error(`Media download error: ${fileRes.status}`)
+
+  const arrayBuffer = await fileRes.arrayBuffer()
+  return { buffer: Buffer.from(arrayBuffer), mimeType: mime_type }
+}
+
 export function verifyWebhookSignature(
   payload: string,
   signature: string

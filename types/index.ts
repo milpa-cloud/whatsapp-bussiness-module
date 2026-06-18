@@ -109,8 +109,13 @@ export interface WhatsAppInboundMessage {
   from: string
   id: string
   timestamp: string
-  type: 'text' | 'image' | 'video' | 'audio' | 'document'
+  type: 'text' | 'image' | 'video' | 'audio' | 'document' | 'sticker'
   text?: { body: string }
+  image?: { id: string; mime_type: string; sha256: string; caption?: string }
+  video?: { id: string; mime_type: string; sha256: string; caption?: string }
+  audio?: { id: string; mime_type: string; sha256: string; voice?: boolean }
+  document?: { id: string; mime_type: string; sha256: string; filename?: string; caption?: string }
+  sticker?: { id: string; mime_type: string; animated: boolean }
 }
 
 export interface WhatsAppStatus {
