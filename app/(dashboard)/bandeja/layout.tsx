@@ -13,7 +13,6 @@ export default async function BandejaLayout({ children }: { children: React.Reac
   const { data: conversations } = await supabase
     .from('conversations')
     .select('*, contacts(id, phone, name, type, created_at)')
-    .eq('status', 'active')
     .order('last_message_at', { ascending: false, nullsFirst: false })
 
   return (

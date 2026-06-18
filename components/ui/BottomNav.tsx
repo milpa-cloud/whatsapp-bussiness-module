@@ -2,22 +2,23 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { MessageSquare, FolderOpen, Truck } from 'lucide-react'
+import { MessageSquare, FolderOpen, Truck, User } from 'lucide-react'
 
 const NAV_ITEMS = [
   { href: '/bandeja', label: 'Bandeja', icon: MessageSquare },
   { href: '/proyectos', label: 'Proyectos', icon: FolderOpen },
   { href: '/proveedores', label: 'Proveedores', icon: Truck },
+  { href: '/perfil', label: 'Perfil', icon: User },
 ]
 
 export default function BottomNav() {
   const pathname = usePathname()
 
-  // Ocultar en conversación abierta — la conversación es full screen
   if (/^\/bandeja\/.+/.test(pathname)) return null
 
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-stone-200 flex items-stretch z-10"
+    <nav
+      className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-stone-200 flex items-stretch z-10"
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
       {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
