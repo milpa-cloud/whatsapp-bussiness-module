@@ -109,7 +109,7 @@ export default function ConversationList({
         </div>
 
         {/* Filtros por etiqueta */}
-        <div className="flex gap-1.5 overflow-x-auto pb-0.5 scrollbar-hide">
+        <div className="flex flex-nowrap gap-1.5 overflow-x-auto pb-0.5 scrollbar-hide">
           <button
             onClick={() => { setLabelFilter(null); setShowArchived(false) }}
             className={`shrink-0 text-xs px-2.5 py-1 rounded-full font-medium transition-colors duration-150 ${

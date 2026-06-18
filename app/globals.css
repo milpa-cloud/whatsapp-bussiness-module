@@ -7,3 +7,13 @@ body {
   background-color: #fafaf9;
   color: #1c1917;
 }
+
+@layer utilities {
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
