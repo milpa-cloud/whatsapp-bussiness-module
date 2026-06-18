@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { Search, Plus } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import type { ConversationWithContact } from '@/app/(dashboard)/bandeja/layout'
+import type { Label } from '@/types'
 import ConversationItem from './ConversationItem'
 import NewChatModal from './NewChatModal'
 
@@ -18,8 +19,10 @@ const FILTERS: { id: Filter; label: string }[] = [
 
 export default function ConversationList({
   initialConversations,
+  allLabels,
 }: {
   initialConversations: ConversationWithContact[]
+  allLabels: Label[]
 }) {
   const [conversations, setConversations] = useState(initialConversations)
   const [search, setSearch] = useState('')
@@ -134,7 +137,7 @@ export default function ConversationList({
           </p>
         ) : (
           filtered.map((conv) => (
-            <ConversationItem key={conv.id} conversation={conv} />
+            <ConversationItem key={conv.id} conversation={conv} allLabels={allLabels} />
           ))
         )}
       </div>

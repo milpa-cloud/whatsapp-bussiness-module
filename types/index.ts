@@ -66,6 +66,13 @@ export interface Project {
   contact?: Contact
 }
 
+export interface Label {
+  id: string
+  name: string
+  color: string
+  created_at: string
+}
+
 export interface UserProfile {
   id: string
   name: string

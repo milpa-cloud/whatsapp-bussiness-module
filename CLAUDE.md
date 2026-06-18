@@ -1,35 +1,48 @@
-# Taller — Módulo de WhatsApp compartido para Milpa
+# Taller — Bandeja WhatsApp compartida para Milpa
 
 ## Contexto del proyecto
 
-Taller es un módulo dentro del ecosistema Milpa (Mini-ERP para PyMEs mexicanas). Su función es reemplazar el WhatsApp personal del dueño de un taller con una bandeja compartida profesional, multiusuario, con automatizaciones y un chatbot de calificación de leads.
+Taller reemplaza el WhatsApp personal del dueño de un taller con una bandeja compartida profesional: multiusuario, con roles, etiquetas, automatizaciones y chatbot de calificación de leads.
 
-**Cliente piloto:** Carpintería Huayapam — manufactura de muebles a medida en México.
+**Cliente piloto:** Carpintería Huayapam — manufactura de muebles a medida, Oaxaca, México.
 **Repositorio:** `github.com/milpa-mx/taller`
 
 ---
 
-## El problema que resuelve
-
-- Los talleres manejan proyectos de semanas/meses vía WhatsApp personal del dueño
-- Múltiples personas necesitan ver y responder las mismas conversaciones
-- No hay distinción estructurada entre clientes y proveedores
-- Los leads nuevos requieren calificación manual
-- Las conversaciones no están asociadas a proyectos — se pierde el hilo
-
----
-
-## Stack técnico
+## Stack
 
 | Capa | Tecnología |
 |------|------------|
-| Frontend | Next.js 14 (App Router), TypeScript, Tailwind CSS |
+| Frontend | Next.js 14 (App Router), TypeScript, Tailwind CSS v3 |
 | Backend | API Routes de Next.js |
 | Base de datos | Supabase (PostgreSQL + Auth + Realtime) |
 | WhatsApp | Meta Cloud API (directo, sin intermediarios) |
 | IA / Chatbot | Anthropic API — modelo `claude-sonnet-4-6` |
-| Hosting | Railway |
-| PWA | next-pwa |
+| Hosting | **Vercel** |
+
+---
+
+## Variables de entorno
+
+```env
+# WhatsApp — Meta Cloud API
+WHATSAPP_VERIFY_TOKEN=        # token que defines para verificar el webhook
+WHATSAPP_ACCESS_TOKEN=        # token de acceso permanente de Meta
+WHATSAPP_PHONE_NUMBER_ID=     # ID del número en Meta Developer Portal
+
+# Supabase
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=    # solo en servidor, NUNCA en cliente
+
+# Anthropic (opcional — si no está, el chatbot se desactiva automáticamente)
+ANTHROPIC_API_KEY=
+
+# App
+NEXT_PUBLIC_APP_URL=          # URL pública del deployment en Vercel
+```
+
+> No se usa NextAuth. La auth es 100% Supabase Auth (email/password).
 
 ---
 
@@ -41,139 +54,175 @@ Taller es un módulo dentro del ecosistema Milpa (Mini-ERP para PyMEs mexicanas)
 Cliente escribe por WhatsApp
   → Meta llama POST /api/webhooks/whatsapp
   → Verificar firma HMAC del request
-  → Identificar si el contacto existe en DB
-  → Si es nuevo: crear contacto como "lead", activar flujo de chatbot
-  → Si existe: guardar mensaje en tabla messages
-  → Supabase Realtime notifica a la interfaz web
-  → El equipo ve el mensaje en la bandeja en tiempo real
+  → Buscar o crear contacto (phone como clave única)
+  → Buscar o crear conversación activa para ese contacto
+  → Guardar mensaje en messages con wa_message_id (deduplicación)
+  → Actualizar last_message_at + last_message_preview + unread_count
+  → Supabase Realtime notifica a la interfaz
+  → Si mode = 'bot' y ANTHROPIC_API_KEY existe → handleBotTurn()
+  → Si mode = 'bot' y sin API key → pasar directo a mode = 'human'
 ```
 
 ### Flujo de mensaje saliente
 
 ```
-Usuario del taller escribe en la interfaz
+Usuario escribe en la interfaz
   → POST /api/messages/send
-  → Llamar a Meta Cloud API con el mensaje
-  → Guardar copia en messages con direction: "outbound"
-  → Actualizar last_message_at en conversation
+  → Verificar auth
+  → Llamar Meta Cloud API con el mensaje
+  → Guardar en messages con direction: "outbound"
+  → Actualizar last_message_at, mode: "human", unread_count: 0
 ```
 
-### Flujo de calificación de lead (chatbot)
+### Flujo del chatbot
 
 ```
-Llega mensaje de número desconocido
-  → Marcar conversación como mode: "bot"
-  → Enviar mensaje de bienvenida automático
-  → En cada respuesta del lead: enviar historial a Claude API
-  → Claude decide: hacer otra pregunta o emitir veredicto
-  → Si calificado: notificar al equipo con resumen, cambiar mode: "human"
-  → Si no calificado: responder amablemente, archivar conversación
+Llega mensaje de número desconocido (contacto nuevo)
+  → Conversación inicia con mode: "bot"
+  → handleBotTurn() envía historial a Claude API
+  → Claude decide: otra pregunta o veredicto
+  → Si calificado: notificar al equipo, cambiar mode: "human"
+  → Si no calificado: responder amablemente, archivar
 ```
 
 ---
 
 ## Schema de base de datos
 
-### contacts
+Las migraciones están en `supabase/migrations/` — correrlas en orden en el SQL Editor de Supabase.
 
+### contacts
 ```sql
-id          uuid primary key
-phone       text unique not null        -- formato: 521XXXXXXXXXX
-name        text
-type        text default 'lead'         -- lead | cliente | proveedor
-created_at  timestamptz default now()
+id         uuid pk
+phone      text unique    -- formato México: 5219XXXXXXXXXX (52 + 1 + 10 dígitos)
+name       text
+type       text           -- lead | cliente | proveedor
+created_at timestamptz
 ```
 
 ### conversations
-
 ```sql
-id              uuid primary key
-contact_id      uuid references contacts
-project_id      uuid references projects nullable
-status          text default 'active'   -- active | archived
-mode            text default 'bot'      -- bot | human
-last_message_at timestamptz
-created_at      timestamptz default now()
+id                   uuid pk
+contact_id           uuid → contacts
+project_id           uuid → projects (nullable)
+status               text           -- active | archived
+mode                 text           -- bot | human
+last_message_at      timestamptz
+last_message_preview text
+unread_count         int default 0
+created_at           timestamptz
 ```
 
 ### messages
-
 ```sql
-id              uuid primary key
-conversation_id uuid references conversations
-direction       text                    -- inbound | outbound
+id              uuid pk
+conversation_id uuid → conversations
+direction       text    -- inbound | outbound
 content         text
-media_url       text nullable
-wa_message_id   text nullable           -- ID de Meta, para deduplicación
-created_at      timestamptz default now()
-read_at         timestamptz nullable
+media_url       text (nullable)
+wa_message_id   text unique  -- ID de Meta, para deduplicación
+created_at      timestamptz
+read_at         timestamptz (nullable)
+```
+
+### user_profiles (extiende auth.users)
+```sql
+id   uuid pk → auth.users
+name text
+role text    -- owner | admin | taller | atencion
+```
+
+### labels
+```sql
+id         uuid pk
+name       text
+color      text   -- clave de color: emerald | amber | sky | violet | rose | orange | teal | indigo | stone
+created_at timestamptz
+```
+
+### conversation_labels (many-to-many)
+```sql
+conversation_id uuid → conversations
+label_id        uuid → labels
+PK (conversation_id, label_id)
+```
+
+### role_label_access
+```sql
+role     text   -- taller | atencion (owner y admin ven todo, sin restricciones)
+label_id uuid → labels
+PK (role, label_id)
+```
+> Si un rol tiene entradas aquí, solo ve conversaciones con esas etiquetas.
+> Si no tiene entradas, ve todas.
+
+### projects
+```sql
+id                uuid pk
+contact_id        uuid → contacts
+title             text
+description       text
+status            text  -- cotizacion | aprobado | produccion | entrega | completado
+estimated_delivery date (nullable)
+created_at        timestamptz
 ```
 
 ### internal_notes
-
 ```sql
-id              uuid primary key
-conversation_id uuid references conversations
-user_id         uuid references auth.users
+id              uuid pk
+conversation_id uuid → conversations
+user_id         uuid → auth.users
 content         text
-created_at      timestamptz default now()
-```
-
-### projects
-
-```sql
-id                uuid primary key
-contact_id        uuid references contacts
-title             text
-description       text
-status            text default 'cotizacion'
-                  -- cotizacion | aprobado | produccion | entrega | completado
-estimated_delivery date nullable
-created_at        timestamptz default now()
-```
-
-### user_profiles (extiende auth.users de Supabase)
-
-```sql
-id      uuid references auth.users primary key
-name    text
-role    text default 'atencion'
-        -- owner | admin | taller | atencion
+created_at      timestamptz
 ```
 
 ---
 
 ## Roles y permisos
 
-| Rol | Bandeja clientes | Proyectos | Proveedores | Finanzas | Config |
-|-----|-----------------|-----------|-------------|----------|--------|
-| owner | ✓ | ✓ | ✓ | ✓ | ✓ |
-| admin | ✓ | ✓ | ✓ | ✗ | ✗ |
-| taller | Solo asignados | Solo asignados | ✗ | ✗ | ✗ |
-| atencion | ✓ | Ver | ✗ | ✗ | ✗ |
+| Rol | Ve en bandeja | Config |
+|-----|--------------|--------|
+| owner | Todo | Sí (etiquetas + permisos) |
+| admin | Todo | Sí (etiquetas + permisos) |
+| taller | Solo conversaciones con sus etiquetas asignadas | No |
+| atencion | Sin restricciones (por defecto) | No |
+
+El filtrado se hace en `app/(dashboard)/bandeja/layout.tsx` según `role_label_access`.
 
 ---
 
-## Variables de entorno requeridas
+## Gotchas críticos para sesiones futuras
 
-```env
-# WhatsApp — Meta Cloud API
-WHATSAPP_VERIFY_TOKEN=          # token que tú defines para verificar el webhook
-WHATSAPP_ACCESS_TOKEN=          # token de acceso permanente de Meta
-WHATSAPP_PHONE_NUMBER_ID=       # ID del número en Meta Developer Portal
+### Supabase client en servidor
+`createServiceClient()` en `lib/supabase/server.ts` usa `createClient` de `@supabase/supabase-js` directamente (NO `createServerClient` de `@supabase/ssr`). Si se cambia a `createServerClient`, falla silenciosamente en Vercel al resolver auth con el service role key.
 
-# Supabase
-NEXT_PUBLIC_SUPABASE_URL=
-NEXT_PUBLIC_SUPABASE_ANON_KEY=
-SUPABASE_SERVICE_ROLE_KEY=      # solo en servidor, nunca en cliente
-
-# Anthropic
-ANTHROPIC_API_KEY=              # para el chatbot de calificación
-
-# App
-NEXTAUTH_SECRET=                # string aleatorio para sesiones
-NEXT_PUBLIC_APP_URL=            # URL pública del deployment
+```ts
+// CORRECTO
+import { createClient } from '@supabase/supabase-js'
+export function createServiceClient() {
+  return createClient(url, serviceKey, { auth: { persistSession: false } })
+}
 ```
+
+### Caching en Vercel
+Todas las páginas del dashboard necesitan:
+```ts
+export const dynamic = 'force-dynamic'
+```
+Sin esto, Vercel sirve HTML en caché y los mensajes nuevos no aparecen al recargar.
+
+### Formato de teléfono WhatsApp (México)
+El número debe tener el prefijo `1` de México: `5219XXXXXXXXXX` (52 + 1 + 10 dígitos).
+La lista de números permitidos en Meta Developer Portal debe usar este mismo formato.
+
+### Chatbot condicional
+`handleBotTurn()` solo se llama si `process.env.ANTHROPIC_API_KEY` existe. Sin la variable, las conversaciones nuevas pasan directo a `mode: 'human'`. Esto es intencional para poder deployar sin el chatbot activo.
+
+### Incrementar unread_count
+Supabase no permite `unread_count + 1` en `.update()`. La solución es seleccionar el valor actual en la misma query de conversación y pasar `currentUnread + 1`.
+
+### Evitar conversaciones duplicadas
+Al crear una conversación desde la UI (`POST /api/conversations`), usar `.order(...).limit(1).maybeSingle()` para buscar la activa existente. Sin `limit(1)`, si hay múltiples activas `maybeSingle()` devuelve error silencioso y se crea una nueva.
 
 ---
 
@@ -182,32 +231,54 @@ NEXT_PUBLIC_APP_URL=            # URL pública del deployment
 ```
 /
 ├── app/
-│   ├── (auth)/              -- login, logout
+│   ├── (auth)/login/              -- página de login
 │   ├── (dashboard)/
-│   │   ├── bandeja/         -- inbox principal
-│   │   ├── proyectos/       -- lista y detalle de proyectos
-│   │   └── proveedores/     -- contactos de proveedores
+│   │   ├── layout.tsx             -- auth check, header, bottom nav
+│   │   ├── bandeja/
+│   │   │   ├── layout.tsx         -- fetch conversaciones + etiquetas, filtra por rol
+│   │   │   ├── page.tsx           -- empty state
+│   │   │   └── [id]/page.tsx      -- vista de conversación (force-dynamic)
+│   │   ├── proyectos/page.tsx     -- placeholder
+│   │   ├── grupos/page.tsx        -- placeholder
+│   │   └── perfil/page.tsx        -- usuario, etiquetas, permisos por rol
 │   └── api/
-│       ├── webhooks/
-│       │   └── whatsapp/    -- POST handler + GET verificación
-│       ├── messages/
-│       │   └── send/        -- enviar mensaje saliente
-│       └── conversations/   -- CRUD conversaciones
+│       ├── webhooks/whatsapp/     -- GET verificación + POST mensajes entrantes
+│       ├── messages/send/         -- enviar mensaje saliente
+│       ├── conversations/         -- POST crear conversación
+│       ├── conversations/[id]/    -- PATCH (status/mode/unread) + DELETE
+│       ├── conversations/[id]/labels/ -- POST + DELETE etiquetas en conversación
+│       ├── labels/                -- GET + POST
+│       ├── labels/[id]/           -- DELETE
+│       └── role-label-access/     -- POST + DELETE (solo owner/admin)
 ├── components/
-│   ├── inbox/               -- componentes de la bandeja
-│   ├── conversation/        -- vista de conversación individual
-│   └── ui/                  -- componentes base reutilizables
+│   ├── inbox/
+│   │   ├── BandejaShell.tsx       -- layout mobile: sidebar ↔ conversación
+│   │   ├── ConversationList.tsx   -- lista con realtime, búsqueda y filtros
+│   │   ├── ConversationItem.tsx   -- swipe left (archivar/eliminar), swipe right (etiquetar)
+│   │   └── NewChatModal.tsx
+│   ├── conversation/
+│   │   ├── ConversationHeader.tsx
+│   │   ├── MessageBubble.tsx
+│   │   └── MessageInput.tsx
+│   └── ui/
+│       ├── LogoMark.tsx           -- SVG 3 barras Milpa (viewBox "0 0 18 18")
+│       ├── BottomNav.tsx          -- nav mobile (Bandeja, Proyectos, Grupos, Perfil)
+│       ├── LogoutButton.tsx
+│       ├── LabelsManager.tsx      -- client component, CRUD etiquetas
+│       └── RoleAccessManager.tsx  -- client component, permisos por rol
 ├── lib/
-│   ├── whatsapp.ts          -- cliente para Meta Cloud API
-│   ├── anthropic.ts         -- cliente para chatbot
+│   ├── whatsapp.ts                -- cliente Meta Cloud API + verifyWebhookSignature
+│   ├── anthropic.ts               -- cliente Anthropic
+│   ├── avatar-color.ts            -- color determinista por nombre (hash → 8 colores)
+│   ├── label-color.ts             -- paleta de 9 colores para etiquetas
 │   ├── supabase/
-│   │   ├── client.ts        -- cliente browser
-│   │   └── server.ts        -- cliente servidor
-│   └── bot/
-│       └── qualify.ts       -- lógica de calificación de leads
-├── types/
-│   └── index.ts             -- tipos TypeScript del dominio
-└── CLAUDE.md                -- este archivo
+│   │   ├── client.ts              -- createClient() para browser
+│   │   └── server.ts              -- createClient() SSR + createServiceClient() service role
+│   └── bot/qualify.ts             -- lógica de calificación con Claude
+├── supabase/migrations/           -- SQL aplicado en Supabase (en orden numérico)
+├── types/index.ts                 -- tipos TypeScript del dominio
+├── middleware.ts                  -- protege rutas, redirige a /login
+└── CLAUDE.md
 ```
 
 ---
@@ -215,54 +286,48 @@ NEXT_PUBLIC_APP_URL=            # URL pública del deployment
 ## Convenciones de código
 
 - TypeScript estricto — no usar `any`
-- Español para conceptos de dominio: `proyecto`, `taller`, `contacto`, `proveedor`
+- Español para dominio: `conversación`, `bandeja`, `contacto`, `etiqueta`
 - Inglés para infraestructura: `webhook`, `handler`, `middleware`, `client`
-- Server Components por defecto en Next.js App Router
-- Client Components solo cuando se necesita interactividad o Realtime
-- Supabase Row Level Security activado en todas las tablas
-- Nunca exponer `SUPABASE_SERVICE_ROLE_KEY` en componentes de cliente
+- Server Components por defecto; Client Components solo para interactividad o Realtime
+- `createServiceClient()` para todas las operaciones de DB en API routes
+- `await createClient()` para verificar auth del usuario en API routes
+- RLS activado en todas las tablas — el service role lo bypasa en el servidor
 
 ---
 
-## Roadmap de construcción
+## Estado actual (junio 2025)
 
-### Semana 1 — Núcleo funcional
+### ✅ Funciona en producción (Vercel)
+- Recepción de mensajes WhatsApp → Supabase → UI en tiempo real
+- Envío de mensajes desde la interfaz → WhatsApp
+- Autenticación con Supabase Auth (email/password)
+- Bandeja multiusuario con Realtime
+- UI mobile-first: bottom nav, swipe gestures, full-screen en conversación
+- Etiquetas de conversación (crear/eliminar desde perfil)
+- Permisos por rol basados en etiquetas
+- Avatares con color determinista
+- Badges de no leídos + preview del último mensaje
+- Archivar / eliminar conversaciones
+- Búsqueda y filtros en la bandeja
+- PWA (manifest.json + íconos)
 
-- [ ] Inicializar proyecto Next.js 14 + TypeScript + Tailwind
-- [ ] Crear schema en Supabase
-- [ ] Webhook de WhatsApp (verificación GET + recepción POST)
-- [ ] Guardar mensajes entrantes en Supabase
-- [ ] Interfaz básica de bandeja (lista de conversaciones + mensajes)
-- [ ] Enviar mensajes desde la interfaz
-
-### Semana 2 — Multi-usuario
-
-- [ ] Autenticación con Supabase Auth
-- [ ] Roles y permisos (RLS en Supabase)
-- [ ] Notas internas en conversaciones
-- [ ] Supabase Realtime (mensajes en tiempo real sin refrescar)
-
-### Semana 3 — Proyectos y chatbot
-
-- [ ] Módulo de proyectos (crear, ver estatus, asociar a conversación)
-- [ ] Chatbot de calificación de leads con Claude API
-- [ ] Notificación al equipo cuando un lead está calificado
-- [ ] Módulo básico de proveedores
-
-### Semana 4 — PWA y automatizaciones
-
-- [ ] next-pwa + manifest.json
-- [ ] Notificaciones push cuando llega mensaje nuevo
-- [ ] Automatización: cambio de estatus en proyecto → WhatsApp al cliente
-- [ ] Recordatorio de pago (trigger diario)
+### 🔲 Pendiente
+- Notas internas en conversaciones (tabla `internal_notes` ya existe)
+- Módulo de proyectos (tabla `projects` ya existe)
+- Chatbot de calificación (código en `lib/bot/qualify.ts`, necesita `ANTHROPIC_API_KEY` en Vercel)
+- Soporte para imágenes en mensajes (webhook solo procesa texto actualmente)
+- Módulo de proveedores
+- Notificaciones push (service worker)
+- Automatizaciones (cambio de estatus → WhatsApp al cliente)
+- Token de acceso permanente de WhatsApp (el actual puede expirar)
 
 ---
 
-## Contexto adicional importante
+## Contexto adicional
 
-- Los proyectos duran semanas o meses — la conversación con el cliente es continua, no puntual
+- Los proyectos duran semanas o meses — la conversación con el cliente es continua
 - El taller tiene 7-10 personas en administración
 - WhatsApp es el canal principal tanto con clientes como con proveedores
-- La mayoría de los clientes son personas que buscan muebles a medida — no empresas
+- La mayoría de los clientes buscan muebles a medida — no son empresas
 - Este módulo debe eventualmente integrarse con el resto de Milpa (inventario, cotizaciones, CFDI)
 - **Prioridad:** que funcione para Huayapam primero. Generalizar después.

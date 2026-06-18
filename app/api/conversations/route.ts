@@ -46,12 +46,14 @@ export async function POST(request: NextRequest) {
     contactId = newContact.id
   }
 
-  // Buscar conversación activa existente
+  // Buscar conversación activa existente (limit(1) evita error si hay duplicados)
   const { data: existingConv } = await supabase
     .from('conversations')
     .select('id')
     .eq('contact_id', contactId)
     .eq('status', 'active')
+    .order('created_at', { ascending: false })
+    .limit(1)
     .maybeSingle()
 
   if (existingConv) {

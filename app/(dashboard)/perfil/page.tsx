@@ -5,6 +5,9 @@ import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { User, Bell, Palette, LogOut } from 'lucide-react'
 import LogoMark from '@/components/ui/LogoMark'
 import LogoutButton from '@/components/ui/LogoutButton'
+import LabelsManager from '@/components/ui/LabelsManager'
+import RoleAccessManager from '@/components/ui/RoleAccessManager'
+import type { Label } from '@/types'
 
 export default async function PerfilPage() {
   const supabase = await createClient()
@@ -12,11 +15,20 @@ export default async function PerfilPage() {
   if (!user) redirect('/login')
 
   const serviceClient = createServiceClient()
-  const { data: profile } = await serviceClient
-    .from('user_profiles')
-    .select('name, role')
-    .eq('id', user.id)
-    .single()
+  const [{ data: profile }, { data: labels }, { data: roleAccessRows }] = await Promise.all([
+    serviceClient.from('user_profiles').select('name, role').eq('id', user.id).single(),
+    serviceClient.from('labels').select('*').order('name'),
+    serviceClient.from('role_label_access').select('role, label_id'),
+  ])
+
+  const isAdmin = ['owner', 'admin'].includes(profile?.role ?? '')
+
+  // Convert rows to Record<role, label_id[]>
+  const roleAccess: Record<string, string[]> = {}
+  for (const row of roleAccessRows ?? []) {
+    if (!roleAccess[row.role]) roleAccess[row.role] = []
+    roleAccess[row.role].push(row.label_id)
+  }
 
   const roleLabel: Record<string, string> = {
     owner: 'Propietario',
@@ -45,6 +57,17 @@ export default async function PerfilPage() {
             )}
           </div>
         </div>
+
+        {/* Etiquetas */}
+        <LabelsManager initialLabels={(labels ?? []) as Label[]} />
+
+        {/* Permisos por rol — solo owner/admin */}
+        {isAdmin && (
+          <RoleAccessManager
+            initialAccess={roleAccess}
+            allLabels={(labels ?? []) as Label[]}
+          />
+        )}
 
         {/* Opciones */}
         <div className="bg-white rounded-2xl border border-stone-200 divide-y divide-stone-100">

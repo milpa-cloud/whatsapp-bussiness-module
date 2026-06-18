@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, MoreVertical, Archive, ArchiveRestore } from 'lucide-react'
 import type { Contact } from '@/types'
+import { getAvatarColor } from '@/lib/avatar-color'
 
 export default function ConversationHeader({
   conversationId,
@@ -22,6 +23,7 @@ export default function ConversationHeader({
 
   const displayName = contact?.name ?? contact?.phone ?? 'Desconocido'
   const isArchived = status === 'archived'
+  const avatarColor = getAvatarColor(displayName)
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -55,7 +57,7 @@ export default function ConversationHeader({
         >
           <ArrowLeft size={18} className="text-stone-600" />
         </Link>
-        <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 text-sm font-semibold shrink-0">
+        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold shrink-0 ${avatarColor.bg} ${avatarColor.text}`}>
           {displayName.charAt(0).toUpperCase()}
         </div>
         <div className="flex-1 min-w-0">
