@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { waitUntil } from '@vercel/functions'
 import { verifyWebhookSignature } from '@/lib/whatsapp'
 import { createServiceClient } from '@/lib/supabase/server'
 import { handleBotTurn } from '@/lib/bot/qualify'
@@ -35,9 +34,9 @@ export async function POST(request: NextRequest) {
     return new NextResponse('Bad Request', { status: 400 })
   }
 
-  // waitUntil garantiza que processIncomingMessages termina aunque
-  // el handler ya haya devuelto la respuesta 200 a Meta
-  waitUntil(processIncomingMessages(payload))
+  // Meta permite hasta 20s para responder — procesamos sincrónicamente
+  // para evitar problemas con el contexto de process.env en waitUntil
+  await processIncomingMessages(payload)
 
   return new NextResponse('OK', { status: 200 })
 }
