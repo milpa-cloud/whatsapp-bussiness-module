@@ -11,18 +11,18 @@ export interface QualificationResult {
 export async function qualifyLead(
   history: Array<{ role: 'user' | 'assistant'; content: string }>
 ): Promise<QualificationResult> {
+  const tallerName = process.env.TALLER_NAME ?? 'el taller'
+  const tallerDescripcion = process.env.TALLER_DESCRIPCION ?? 'un taller de manufactura por encargo'
+  const tallerCriterios = process.env.TALLER_CRITERIOS_BOT ??
+    '1. ¿Tiene un proyecto concreto?\n2. ¿Conoce su presupuesto aproximado?\n3. ¿Tiene fecha estimada?'
+
   const response = await client.messages.create({
     model: 'claude-sonnet-4-6',
     max_tokens: 1024,
-    system: `Eres el asistente de calificación de leads de Carpintería Huayapam,
-un taller de muebles a medida en Oaxaca, México. Tu trabajo es calificar si
-un cliente potencial tiene un proyecto viable.
+    system: `Eres el asistente de calificación de leads de ${tallerName}, ${tallerDescripcion}. Tu trabajo es calificar si un cliente potencial tiene un proyecto viable.
 
 Califica basándote en:
-1. ¿Tiene un proyecto concreto de muebles a medida?
-2. ¿Conoce su presupuesto aproximado? (proyectos desde $5,000 MXN)
-3. ¿Tiene fecha estimada de entrega?
-4. ¿Es en Oaxaca o puede coordinar envío?
+${tallerCriterios}
 
 Responde SIEMPRE en JSON con este formato:
 {
@@ -44,7 +44,7 @@ Responde SIEMPRE en JSON con este formato:
   } catch {
     return {
       action: 'ask',
-      message: 'Hola, ¿en qué te podemos ayudar? ¿Qué tipo de mueble tienes en mente?',
+      message: '¡Hola! ¿En qué te podemos ayudar?',
     }
   }
 }

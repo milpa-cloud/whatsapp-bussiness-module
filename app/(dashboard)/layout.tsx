@@ -8,8 +8,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <MessageSquare size={13} className="text-white" />
         </div>
         <span className="text-sm font-semibold text-slate-800">Taller</span>
-        <span className="text-sm text-slate-400">·</span>
-        <span className="text-sm text-slate-500">Carpintería Huayapam</span>
+        {process.env.NEXT_PUBLIC_TALLER_NAME && (
+          <>
+            <span className="text-sm text-slate-400">·</span>
+            <span className="text-sm text-slate-500">{process.env.NEXT_PUBLIC_TALLER_NAME}</span>
+          </>
+        )}
       </header>
       <main className="flex-1 overflow-hidden">
         {children}
