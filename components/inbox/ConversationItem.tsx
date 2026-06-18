@@ -3,7 +3,7 @@
 import { useRef, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { Bot, Archive, ArchiveRestore, Trash2, Tag, X, Check } from 'lucide-react'
+import { Archive, ArchiveRestore, Trash2, Tag, X, Check } from 'lucide-react'
 import type { ConversationWithContact } from '@/app/(dashboard)/bandeja/layout'
 import type { Label } from '@/types'
 import { getAvatarColor } from '@/lib/avatar-color'
@@ -211,36 +211,25 @@ export default function ConversationItem({
             {/* Contenido */}
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between gap-1">
-                <div className="flex items-center gap-1.5 min-w-0">
-                  <span className={`text-sm truncate ${unread > 0 && !isActive ? 'font-semibold text-stone-900' : 'font-medium text-stone-800'}`}>
-                    {displayName}
-                  </span>
-                  {appliedLabels.length > 0 && (
-                    <div className="flex items-center gap-0.5 shrink-0">
-                      {appliedLabels.slice(0, 3).map((label) => {
-                        const color = getLabelColor(label.color)
-                        return (
-                          <span
-                            key={label.id}
-                            className={`w-2 h-2 rounded-full ${color.dot}`}
-                            title={label.name}
-                          />
-                        )
-                      })}
-                    </div>
-                  )}
-                </div>
+                <span className={`text-sm truncate ${unread > 0 && !isActive ? 'font-semibold text-stone-900' : 'font-medium text-stone-800'}`}>
+                  {displayName}
+                </span>
                 <span className="text-xs text-stone-400 shrink-0" suppressHydrationWarning>
                   {formatTime(conversation.last_message_at)}
                 </span>
               </div>
-              <div className="flex items-center gap-1 mt-0.5">
-                {conversation.mode === 'bot' && (
-                  <span className="inline-flex items-center gap-0.5 text-xs bg-amber-100 text-amber-600 rounded px-1.5 py-0.5 font-medium shrink-0">
-                    <Bot size={10} />
-                    bot
-                  </span>
-                )}
+              <div className="flex items-center gap-1 mt-0.5 overflow-hidden">
+                {appliedLabels.slice(0, 2).map((label) => {
+                  const color = getLabelColor(label.color)
+                  return (
+                    <span
+                      key={label.id}
+                      className={`shrink-0 text-xs font-medium px-1.5 py-0.5 rounded-full ${color.bg} ${color.text}`}
+                    >
+                      {label.name}
+                    </span>
+                  )
+                })}
                 {preview ? (
                   <span className={`text-xs truncate ${unread > 0 && !isActive ? 'text-stone-600 font-medium' : 'text-stone-400'}`}>
                     {preview}
