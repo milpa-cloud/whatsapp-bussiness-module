@@ -144,9 +144,20 @@ async function processIncomingMessages(payload: WhatsAppWebhookPayload) {
           .update({ last_message_at: new Date().toISOString() })
           .eq('id', conversationId)
 
-        // 5. Si el modo es bot, activar calificación
-        if (conversationMode === 'bot') {
-          await handleBotTurn(conversationId, phone)
+        // 5. Si el modo es bot y hay API key de Anthropic, activar calificación
+        if (conversationMode === 'bot' && process.env.ANTHROPIC_API_KEY) {
+          try {
+            await handleBotTurn(conversationId, phone)
+          } catch (botError) {
+            // El bot falla silenciosamente — el mensaje ya fue guardado
+            console.error('Error en bot turn (mensaje guardado):', botError)
+          }
+        } else if (conversationMode === 'bot' && !process.env.ANTHROPIC_API_KEY) {
+          // Sin API key del bot, pasar directo a atención humana
+          await supabase
+            .from('conversations')
+            .update({ mode: 'human' })
+            .eq('id', conversationId)
         }
       }
     }
