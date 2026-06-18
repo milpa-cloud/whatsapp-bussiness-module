@@ -100,21 +100,23 @@ async function processIncomingMessages(payload: WhatsAppWebhookPayload) {
 
         const { data: conversation } = await supabase
           .from('conversations')
-          .select('id, mode')
+          .select('id, mode, unread_count')
           .eq('contact_id', contactId)
           .eq('status', 'active')
           .order('created_at', { ascending: false })
           .limit(1)
           .maybeSingle()
 
+        let currentUnread = 0
         if (conversation) {
           conversationId = conversation.id
           conversationMode = conversation.mode as 'bot' | 'human'
+          currentUnread = conversation.unread_count ?? 0
         } else {
           const { data: newConversation, error } = await supabase
             .from('conversations')
             .insert({ contact_id: contactId, mode: 'bot', status: 'active' })
-            .select('id, mode')
+            .select('id, mode, unread_count')
             .single()
 
           if (error || !newConversation) {
@@ -123,6 +125,7 @@ async function processIncomingMessages(payload: WhatsAppWebhookPayload) {
           }
           conversationId = newConversation.id
           conversationMode = 'bot'
+          currentUnread = 0
         }
 
         // 3. Guardar mensaje
@@ -138,10 +141,15 @@ async function processIncomingMessages(payload: WhatsAppWebhookPayload) {
           continue
         }
 
-        // 4. Actualizar timestamp de conversación
+        // 4. Actualizar timestamp, preview y contador de no leídos
+        const preview = content.length > 60 ? content.slice(0, 60) + '…' : content
         await supabase
           .from('conversations')
-          .update({ last_message_at: new Date().toISOString() })
+          .update({
+            last_message_at: new Date().toISOString(),
+            last_message_preview: preview,
+            unread_count: conversationMode === 'human' ? currentUnread + 1 : 0,
+          })
           .eq('id', conversationId)
 
         // 5. Si el modo es bot y hay API key de Anthropic, activar calificación

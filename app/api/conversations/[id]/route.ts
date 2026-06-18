@@ -11,16 +11,17 @@ export async function PATCH(
 
   const supabase = createServiceClient()
 
-  let body: { status?: string; mode?: string }
+  let body: { status?: string; mode?: string; unread_count?: number }
   try {
     body = await request.json()
   } catch {
     return NextResponse.json({ error: 'Payload inválido' }, { status: 400 })
   }
 
-  const updates: Record<string, string> = {}
+  const updates: Record<string, string | number> = {}
   if (body.status) updates.status = body.status
   if (body.mode) updates.mode = body.mode
+  if (body.unread_count !== undefined) updates.unread_count = body.unread_count
 
   const { error } = await supabase
     .from('conversations')

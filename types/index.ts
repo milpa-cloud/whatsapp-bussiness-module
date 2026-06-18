@@ -30,6 +30,8 @@ export interface Conversation {
   status: ConversationStatus
   mode: ConversationMode
   last_message_at: string | null
+  last_message_preview: string | null
+  unread_count: number
   created_at: string
   contact?: Contact
 }

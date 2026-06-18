@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
 
   await supabase
     .from('conversations')
-    .update({ last_message_at: new Date().toISOString(), mode: 'human' })
+    .update({ last_message_at: new Date().toISOString(), mode: 'human', unread_count: 0 })
     .eq('id', conversation_id)
 
   return NextResponse.json({ message })

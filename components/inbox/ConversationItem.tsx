@@ -17,7 +17,7 @@ function formatTime(dateStr: string | null): string {
   return date.toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit' })
 }
 
-const REVEAL_OFFSET = -120 // cuánto se desplaza para revelar los botones
+const REVEAL_OFFSET = -120
 
 export default function ConversationItem({
   conversation,
@@ -31,6 +31,8 @@ export default function ConversationItem({
   const displayName = contact?.name ?? contact?.phone ?? 'Desconocido'
   const initial = displayName.charAt(0).toUpperCase()
   const isArchived = conversation.status === 'archived'
+  const unread = (conversation as any).unread_count ?? 0
+  const preview = (conversation as any).last_message_preview as string | null
 
   const [offsetX, setOffsetX] = useState(0)
   const [revealed, setRevealed] = useState(false)
@@ -49,12 +51,10 @@ export default function ConversationItem({
   function onTouchMove(e: React.TouchEvent) {
     const dx = e.touches[0].clientX - startX.current
     const dy = e.touches[0].clientY - startY.current
-
     if (isHorizontal.current === null) {
       isHorizontal.current = Math.abs(dx) > Math.abs(dy)
     }
     if (!isHorizontal.current) return
-
     e.preventDefault()
     const base = revealed ? REVEAL_OFFSET : 0
     setOffsetX(Math.max(REVEAL_OFFSET, Math.min(0, base + dx)))
@@ -94,9 +94,21 @@ export default function ConversationItem({
     router.refresh()
   }
 
+  async function handleOpen() {
+    if (revealed) { close(); return }
+    // Resetear contador de no leídos al abrir
+    if (unread > 0) {
+      fetch(`/api/conversations/${conversation.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ unread_count: 0 }),
+      })
+    }
+  }
+
   return (
     <div className="relative overflow-hidden select-none">
-      {/* Panel de acciones (fondo) */}
+      {/* Panel de acciones */}
       <div className="absolute inset-y-0 right-0 w-[120px] flex items-stretch">
         <button
           onClick={handleArchive}
@@ -128,34 +140,52 @@ export default function ConversationItem({
       >
         <Link
           href={`/bandeja/${conversation.id}`}
-          onClick={revealed ? (e) => { e.preventDefault(); close() } : undefined}
+          onClick={revealed ? (e) => { e.preventDefault(); close() } : handleOpen}
           className={`flex items-center gap-3 px-4 py-3 border-b border-stone-100 bg-white transition-colors duration-150 ${
             isActive ? 'bg-emerald-50 border-l-2 border-l-emerald-500' : 'hover:bg-stone-50'
           }`}
         >
-          <div
-            className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold shrink-0 ${
-              isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-stone-100 text-stone-600'
-            }`}
-          >
-            {initial}
+          {/* Avatar */}
+          <div className="relative shrink-0">
+            <div
+              className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold ${
+                isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-stone-100 text-stone-600'
+              }`}
+            >
+              {initial}
+            </div>
+            {unread > 0 && !isActive && (
+              <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-emerald-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                {unread > 9 ? '9+' : unread}
+              </span>
+            )}
           </div>
+
+          {/* Contenido */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between gap-1">
-              <span className="text-sm font-medium text-stone-800 truncate">{displayName}</span>
+              <span className={`text-sm truncate ${unread > 0 && !isActive ? 'font-semibold text-stone-900' : 'font-medium text-stone-800'}`}>
+                {displayName}
+              </span>
               <span className="text-xs text-stone-400 shrink-0">
                 {formatTime(conversation.last_message_at)}
               </span>
             </div>
             <div className="flex items-center gap-1 mt-0.5">
               {conversation.mode === 'bot' && (
-                <span className="inline-flex items-center gap-0.5 text-xs bg-amber-100 text-amber-600 rounded px-1.5 py-0.5 font-medium">
+                <span className="inline-flex items-center gap-0.5 text-xs bg-amber-100 text-amber-600 rounded px-1.5 py-0.5 font-medium shrink-0">
                   <Bot size={10} />
                   bot
                 </span>
               )}
-              {!contact?.name && (
-                <span className="text-xs text-stone-400 truncate">{contact?.phone}</span>
+              {preview ? (
+                <span className={`text-xs truncate ${unread > 0 && !isActive ? 'text-stone-600 font-medium' : 'text-stone-400'}`}>
+                  {preview}
+                </span>
+              ) : (
+                !contact?.name && (
+                  <span className="text-xs text-stone-400 truncate">{contact?.phone}</span>
+                )
               )}
             </div>
           </div>
