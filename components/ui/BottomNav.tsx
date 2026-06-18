@@ -2,12 +2,12 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { MessageSquare, FolderOpen, Truck, User } from 'lucide-react'
+import { MessageSquare, FolderOpen, Users, User } from 'lucide-react'
 
 const NAV_ITEMS = [
   { href: '/bandeja', label: 'Bandeja', icon: MessageSquare },
   { href: '/proyectos', label: 'Proyectos', icon: FolderOpen },
-  { href: '/proveedores', label: 'Proveedores', icon: Truck },
+  { href: '/grupos', label: 'Grupos', icon: Users },
   { href: '/perfil', label: 'Perfil', icon: User },
 ]
 
