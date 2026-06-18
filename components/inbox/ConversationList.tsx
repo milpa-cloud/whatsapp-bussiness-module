@@ -1,21 +1,13 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Search, Plus } from 'lucide-react'
+import { Search, Plus, Archive } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import type { ConversationWithContact } from '@/app/(dashboard)/bandeja/layout'
 import type { Label } from '@/types'
+import { getLabelColor } from '@/lib/label-color'
 import ConversationItem from './ConversationItem'
 import NewChatModal from './NewChatModal'
-
-type Filter = 'all' | 'bot' | 'human' | 'archived'
-
-const FILTERS: { id: Filter; label: string }[] = [
-  { id: 'all', label: 'Todos' },
-  { id: 'human', label: 'Humano' },
-  { id: 'bot', label: 'Bot' },
-  { id: 'archived', label: 'Archivados' },
-]
 
 export default function ConversationList({
   initialConversations,
@@ -26,7 +18,8 @@ export default function ConversationList({
 }) {
   const [conversations, setConversations] = useState(initialConversations)
   const [search, setSearch] = useState('')
-  const [filter, setFilter] = useState<Filter>('all')
+  const [labelFilter, setLabelFilter] = useState<string | null>(null) // null = todos
+  const [showArchived, setShowArchived] = useState(false)
   const [showNewChat, setShowNewChat] = useState(false)
   const supabase = createClient()
 
@@ -52,10 +45,9 @@ export default function ConversationList({
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'conversations' },
         async (payload) => {
-          // Fetch the new conversation with its contact
           const { data } = await supabase
             .from('conversations')
-            .select('*, contacts(id, phone, name, type, created_at)')
+            .select('*, contacts(id, phone, name, type, created_at), conversation_labels(label_id, labels(*))')
             .eq('id', payload.new.id)
             .single()
           if (data) {
@@ -70,10 +62,13 @@ export default function ConversationList({
 
   const filtered = conversations
     .filter((c) => {
-      if (filter === 'archived') return c.status === 'archived'
-      if (filter === 'bot') return c.status === 'active' && c.mode === 'bot'
-      if (filter === 'human') return c.status === 'active' && c.mode === 'human'
-      return c.status === 'active'
+      if (showArchived) return c.status === 'archived'
+      if (c.status !== 'active') return false
+      if (labelFilter) {
+        const labelIds = c.conversation_labels?.map((cl) => cl.label_id) ?? []
+        return labelIds.includes(labelFilter)
+      }
+      return true
     })
     .filter((c) => {
       if (!search) return true
@@ -81,6 +76,8 @@ export default function ConversationList({
       const phone = c.contacts?.phone ?? ''
       return name.includes(search.toLowerCase()) || phone.includes(search)
     })
+
+  const archivedCount = conversations.filter((c) => c.status === 'archived').length
 
   return (
     <div className="flex flex-col h-full">
@@ -111,21 +108,34 @@ export default function ConversationList({
           />
         </div>
 
-        {/* Filtros */}
+        {/* Filtros por etiqueta */}
         <div className="flex gap-1.5 overflow-x-auto pb-0.5 scrollbar-hide">
-          {FILTERS.map(({ id, label }) => (
-            <button
-              key={id}
-              onClick={() => setFilter(id)}
-              className={`shrink-0 text-xs px-2.5 py-1 rounded-full font-medium transition-colors duration-150 ${
-                filter === id
-                  ? 'bg-stone-900 text-stone-50'
-                  : 'bg-stone-100 text-stone-500 hover:bg-stone-200'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
+          <button
+            onClick={() => { setLabelFilter(null); setShowArchived(false) }}
+            className={`shrink-0 text-xs px-2.5 py-1 rounded-full font-medium transition-colors duration-150 ${
+              !labelFilter && !showArchived
+                ? 'bg-stone-900 text-stone-50'
+                : 'bg-stone-100 text-stone-500 hover:bg-stone-200'
+            }`}
+          >
+            Todos
+          </button>
+
+          {allLabels.map((label) => {
+            const color = getLabelColor(label.color)
+            const isActive = labelFilter === label.id && !showArchived
+            return (
+              <button
+                key={label.id}
+                onClick={() => { setLabelFilter(label.id); setShowArchived(false) }}
+                className={`shrink-0 text-xs px-2.5 py-1 rounded-full font-medium transition-colors duration-150 ${
+                  isActive ? `${color.bg} ${color.text}` : 'bg-stone-100 text-stone-500 hover:bg-stone-200'
+                }`}
+              >
+                {label.name}
+              </button>
+            )
+          })}
         </div>
       </div>
 
@@ -133,12 +143,30 @@ export default function ConversationList({
       <div className="flex-1 overflow-y-auto">
         {filtered.length === 0 ? (
           <p className="text-xs text-stone-400 px-4 py-6 text-center">
-            {search ? 'Sin resultados' : 'Sin conversaciones'}
+            {search ? 'Sin resultados' : showArchived ? 'Sin archivados' : 'Sin conversaciones'}
           </p>
         ) : (
           filtered.map((conv) => (
             <ConversationItem key={conv.id} conversation={conv} allLabels={allLabels} />
           ))
+        )}
+
+        {/* Archivados */}
+        {!search && (
+          <button
+            onClick={() => { setShowArchived((v) => !v); setLabelFilter(null) }}
+            className={`w-full flex items-center gap-2 px-4 py-3 text-xs transition-colors border-t border-stone-100 ${
+              showArchived
+                ? 'text-stone-700 font-medium bg-stone-50'
+                : 'text-stone-400 hover:text-stone-600 hover:bg-stone-50'
+            }`}
+          >
+            <Archive size={13} />
+            Archivados
+            {archivedCount > 0 && (
+              <span className="ml-auto text-stone-400 font-normal">{archivedCount}</span>
+            )}
+          </button>
         )}
       </div>
 
