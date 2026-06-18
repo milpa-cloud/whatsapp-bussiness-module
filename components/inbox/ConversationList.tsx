@@ -38,14 +38,14 @@ export default function ConversationList({
 
   return (
     <div className="flex flex-col h-full">
-      <div className="px-4 py-3 border-b border-slate-100 shrink-0">
-        <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+      <div className="px-4 py-3 border-b border-stone-100 shrink-0">
+        <h2 className="text-xs font-bold tracking-widest uppercase text-emerald-600">
           Bandeja
         </h2>
       </div>
       <div className="flex-1 overflow-y-auto">
         {conversations.length === 0 ? (
-          <p className="text-xs text-slate-400 px-4 py-6 text-center">
+          <p className="text-xs text-stone-400 px-4 py-6 text-center">
             Sin conversaciones activas
           </p>
         ) : (

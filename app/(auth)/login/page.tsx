@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { MessageSquare } from 'lucide-react'
+import LogoMark from '@/components/ui/LogoMark'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -33,20 +33,20 @@ export default function LoginPage() {
 
   return (
     <div className="w-full max-w-sm">
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
+      <div className="bg-white rounded-2xl border border-stone-200 p-8">
         <div className="flex flex-col items-center mb-8">
-          <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center mb-3">
-            <MessageSquare size={20} className="text-white" />
+          <div className="w-10 h-10 bg-stone-900 rounded-xl flex items-center justify-center mb-3">
+            <LogoMark size={18} color="#fafaf9" />
           </div>
-          <h1 className="text-lg font-semibold text-slate-800">Taller</h1>
+          <h1 className="text-base font-semibold text-stone-900">Taller</h1>
           {tallerName && (
-            <p className="text-sm text-slate-400 mt-0.5">{tallerName}</p>
+            <p className="text-sm text-stone-400 mt-0.5">{tallerName}</p>
           )}
         </div>
 
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1.5">
+            <label className="block text-xs font-medium text-stone-600 mb-1.5">
               Correo electrónico
             </label>
             <input
@@ -55,12 +55,12 @@ export default function LoginPage() {
               autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent placeholder:text-slate-400"
+              className="w-full border border-stone-200 rounded-xl px-4 py-2.5 text-sm text-stone-900 focus:border-stone-900 outline-none transition-colors placeholder:text-stone-400"
               placeholder="tu@correo.com"
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1.5">
+            <label className="block text-xs font-medium text-stone-600 mb-1.5">
               Contraseña
             </label>
             <input
@@ -69,7 +69,7 @@ export default function LoginPage() {
               autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent placeholder:text-slate-400"
+              className="w-full border border-stone-200 rounded-xl px-4 py-2.5 text-sm text-stone-900 focus:border-stone-900 outline-none transition-colors placeholder:text-stone-400"
               placeholder="••••••••"
             />
           </div>
@@ -81,7 +81,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed text-white text-sm font-medium py-2.5 rounded-lg transition-colors"
+            className="w-full bg-stone-900 hover:bg-stone-800 disabled:opacity-50 disabled:cursor-not-allowed text-stone-50 text-sm font-semibold py-2.5 rounded-full transition-colors duration-150"
           >
             {loading ? 'Entrando…' : 'Entrar'}
           </button>

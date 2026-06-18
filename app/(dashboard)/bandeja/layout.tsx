@@ -18,7 +18,7 @@ export default async function BandejaLayout({ children }: { children: React.Reac
 
   return (
     <div className="flex h-full">
-      <aside className="w-72 border-r border-slate-200 bg-white flex flex-col shrink-0">
+      <aside className="w-72 border-r border-stone-200 bg-white flex flex-col shrink-0">
         <ConversationList initialConversations={(conversations ?? []) as ConversationWithContact[]} />
       </aside>
       <section className="flex-1 overflow-hidden flex flex-col">
