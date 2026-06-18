@@ -230,7 +230,7 @@ export default function ConversationItem({
                     </div>
                   )}
                 </div>
-                <span className="text-xs text-stone-400 shrink-0">
+                <span className="text-xs text-stone-400 shrink-0" suppressHydrationWarning>
                   {formatTime(conversation.last_message_at)}
                 </span>
               </div>
