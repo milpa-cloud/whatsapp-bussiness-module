@@ -2,10 +2,26 @@
 
 ## Contexto del proyecto
 
-Taller reemplaza el WhatsApp personal del dueño de un taller con una bandeja compartida profesional: multiusuario, con roles, etiquetas, automatizaciones y chatbot de calificación de leads.
+Taller es la bandeja de WhatsApp compartida de **Milpa Studio**. Reemplaza el WhatsApp personal con una bandeja profesional: multiusuario, con roles, etiquetas, automatizaciones y chatbot de calificación de leads.
 
-**Cliente piloto:** Carpintería Huayapam — manufactura de muebles a medida, Oaxaca, México.
-**Repositorio:** `github.com/milpa-mx/taller`
+**Uso actual:** Milpa Studio — deployment en `chat.milpa.cloud`
+**Repositorio:** `github.com/milpa-cloud/whatsapp-bussiness-module`
+
+### Modelo de deployment por cliente
+
+El código es genérico. Cada cliente recibe su propio deployment con sus propias credenciales:
+
+```
+milpa-cloud/whatsapp-bussiness-module  → chat.milpa.cloud       (Milpa, interno)
+milpa-cloud/huayapam-taller            → chat.huayapam.com      (Huayapam, futuro fork)
+```
+
+Para dar a un cliente su propio sistema:
+1. Fork este repo → nuevo repo privado
+2. Nuevo proyecto Supabase (datos separados)
+3. Nuevo número WhatsApp Business en Meta Developer Portal
+4. Nuevo proyecto Vercel con sus propias variables de entorno
+5. Correr migraciones SQL en el nuevo Supabase
 
 ---
 
