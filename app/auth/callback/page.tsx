@@ -15,11 +15,11 @@ export default function AuthCallbackPage() {
     const refresh_token = params.get('refresh_token')
 
     if (access_token && refresh_token) {
-      supabase.auth.setSession({ access_token, refresh_token }).then(({ error }) => {
-        if (error) {
-          router.replace('/login?error=link_invalido')
-        } else {
+      supabase.auth.setSession({ access_token, refresh_token }).then(({ data, error }) => {
+        if (!error && data.session) {
           router.replace('/update-password')
+        } else {
+          router.replace('/login?error=link_invalido')
         }
       })
     } else {
