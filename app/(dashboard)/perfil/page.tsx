@@ -2,12 +2,10 @@ export const dynamic = 'force-dynamic'
 
 import { redirect } from 'next/navigation'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
-import { User, Bell, Palette, LogOut } from 'lucide-react'
+import { Bell, Palette, LogOut, Settings } from 'lucide-react'
+import Link from 'next/link'
 import LogoMark from '@/components/ui/LogoMark'
 import LogoutButton from '@/components/ui/LogoutButton'
-import LabelsManager from '@/components/ui/LabelsManager'
-import RoleAccessManager from '@/components/ui/RoleAccessManager'
-import type { Label } from '@/types'
 
 export default async function PerfilPage() {
   const supabase = await createClient()
@@ -15,20 +13,13 @@ export default async function PerfilPage() {
   if (!user) redirect('/login')
 
   const serviceClient = createServiceClient()
-  const [{ data: profile }, { data: labels }, { data: roleAccessRows }] = await Promise.all([
-    serviceClient.from('user_profiles').select('name, role').eq('id', user.id).single(),
-    serviceClient.from('labels').select('*').order('name'),
-    serviceClient.from('role_label_access').select('role, label_id'),
-  ])
+  const { data: profile } = await serviceClient
+    .from('user_profiles')
+    .select('name, role')
+    .eq('id', user.id)
+    .single()
 
   const isAdmin = ['owner', 'admin'].includes(profile?.role ?? '')
-
-  // Convert rows to Record<role, label_id[]>
-  const roleAccess: Record<string, string[]> = {}
-  for (const row of roleAccessRows ?? []) {
-    if (!roleAccess[row.role]) roleAccess[row.role] = []
-    roleAccess[row.role].push(row.label_id)
-  }
 
   const roleLabel: Record<string, string> = {
     owner: 'Propietario',
@@ -58,19 +49,22 @@ export default async function PerfilPage() {
           </div>
         </div>
 
-        {/* Etiquetas */}
-        <LabelsManager initialLabels={(labels ?? []) as Label[]} />
-
-        {/* Permisos por rol — solo owner/admin */}
-        {isAdmin && (
-          <RoleAccessManager
-            initialAccess={roleAccess}
-            allLabels={(labels ?? []) as Label[]}
-          />
-        )}
-
         {/* Opciones */}
         <div className="bg-white rounded-2xl border border-stone-200 divide-y divide-stone-100">
+          {isAdmin && (
+            <Link
+              href="/admin"
+              className="flex items-center gap-3 px-4 py-3.5 hover:bg-stone-50 transition-colors"
+            >
+              <div className="w-8 h-8 rounded-full bg-stone-100 flex items-center justify-center shrink-0">
+                <Settings size={15} className="text-stone-600" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-stone-800">Administración</p>
+                <p className="text-xs text-stone-400">Equipo, grupos y etiquetas</p>
+              </div>
+            </Link>
+          )}
           <SettingRow icon={Bell} label="Notificaciones" description="Próximamente" disabled />
           <SettingRow icon={Palette} label="Apariencia" description="Próximamente" disabled />
         </div>
@@ -86,9 +80,7 @@ export default async function PerfilPage() {
           <LogoutButton />
         </div>
 
-        <p className="text-center text-xs text-stone-300 pb-4">
-          Milpa · v0.1
-        </p>
+        <p className="text-center text-xs text-stone-300 pb-4">Milpa · v0.1</p>
       </div>
     </div>
   )
