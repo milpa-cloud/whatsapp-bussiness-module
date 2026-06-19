@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { MessageSquare, FolderOpen, Users, User } from 'lucide-react'
+import { MessageSquare, FolderOpen, Users, User, Settings } from 'lucide-react'
 
 const NAV_ITEMS = [
   { href: '/bandeja',   label: 'Bandeja',   icon: MessageSquare },
@@ -11,12 +11,16 @@ const NAV_ITEMS = [
   { href: '/perfil',    label: 'Perfil',    icon: User          },
 ]
 
-export default function TopNav() {
+export default function TopNav({ isAdmin = false }: { isAdmin?: boolean }) {
   const pathname = usePathname()
+
+  const items = isAdmin
+    ? [...NAV_ITEMS, { href: '/admin', label: 'Admin', icon: Settings }]
+    : NAV_ITEMS
 
   return (
     <nav className="hidden md:flex items-center gap-1 ml-2">
-      {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
+      {items.map(({ href, label, icon: Icon }) => {
         const isActive = pathname === href || (href === '/bandeja' && pathname.startsWith('/bandeja'))
         return (
           <Link
