@@ -16,12 +16,24 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
 
   const { data: messages } = await supabase
     .from('internal_messages')
-    .select('*, user_profiles(name)')
+    .select('*')
     .eq('channel_id', id)
     .order('created_at', { ascending: true })
     .limit(200)
 
-  return NextResponse.json(messages ?? [])
+  if (!messages?.length) return NextResponse.json([])
+
+  const userIds = [...new Set(messages.map((m) => m.user_id).filter(Boolean))]
+  const { data: profiles } = await supabase
+    .from('user_profiles')
+    .select('id, name')
+    .in('id', userIds)
+
+  const profileMap = Object.fromEntries((profiles ?? []).map((p) => [p.id, p]))
+
+  return NextResponse.json(
+    messages.map((m) => ({ ...m, user_profiles: profileMap[m.user_id] ?? null }))
+  )
 }
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -37,7 +49,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const { data: message, error } = await supabase
     .from('internal_messages')
     .insert({ channel_id: id, user_id: user.id, content: content.trim() })
-    .select('*, user_profiles(name)')
+    .select('*')
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
