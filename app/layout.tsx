@@ -14,13 +14,16 @@ const geistMono = localFont({
 })
 
 export const metadata: Metadata = {
-  title: 'Taller',
+  title: 'Milpa',
   description: 'Bandeja compartida de WhatsApp',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
-    statusBarStyle: 'default',
-    title: 'Taller',
+    statusBarStyle: 'black-translucent',
+    title: 'Milpa',
+  },
+  icons: {
+    apple: '/milpa-whatsapp-logo.png',
   },
 }
 

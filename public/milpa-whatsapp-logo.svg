@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Fondo -->
+  <rect width="512" height="512" rx="96" fill="#1c1917"/>
+
+  <!-- 3 barras Milpa (centradas, escaladas) -->
+  <rect x="148" y="228" width="64" height="176" rx="32" fill="#fafaf9"/>
+  <rect x="224" y="108" width="64" height="296" rx="32" fill="#fafaf9"/>
+  <rect x="300" y="284" width="64" height="120" rx="32" fill="#fafaf9"/>
+</svg>
