@@ -161,7 +161,7 @@ export default function InternalChat({
   return (
     <div className="flex h-full">
       {/* Sidebar canales */}
-      <div className="w-64 shrink-0 border-r border-stone-200 bg-white flex flex-col">
+      <div className={`${activeChannelId ? 'hidden md:flex' : 'flex'} w-full md:w-64 shrink-0 border-r border-stone-200 bg-white flex-col`}>
         <div className="h-12 border-b border-stone-100 flex items-center justify-between px-4">
           <span className="text-xs font-semibold text-stone-500 uppercase tracking-wide">Canales</span>
           <button
@@ -194,11 +194,17 @@ export default function InternalChat({
       </div>
 
       {/* Chat */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className={`${activeChannelId ? 'flex' : 'hidden md:flex'} flex-1 flex-col min-w-0`}>
         {activeChannel ? (
           <>
             {/* Header */}
             <div className="h-12 border-b border-stone-200 bg-white flex items-center px-4 gap-2 shrink-0">
+              <button
+                onClick={() => setActiveChannelId(null)}
+                className="md:hidden mr-1 text-stone-400 hover:text-stone-700"
+              >
+                ←
+              </button>
               <Hash size={15} className="text-stone-400" />
               <span className="text-sm font-semibold text-stone-800">{activeChannel.name}</span>
               <span className="text-xs text-stone-400 ml-1">
