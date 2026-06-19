@@ -23,7 +23,7 @@ export const metadata: Metadata = {
     title: 'Milpa',
   },
   icons: {
-    icon: '/icon',
+    icon: [{ url: '/favicon.svg', type: 'image/svg+xml' }],
     apple: '/milpa-whatsapp-logo.png',
   },
 }
