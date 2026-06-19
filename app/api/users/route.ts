@@ -52,7 +52,10 @@ export async function POST(request: NextRequest) {
   if (!email?.trim()) return NextResponse.json({ error: 'Email requerido' }, { status: 400 })
 
   const { data, error } = await supabase.auth.admin.inviteUserByEmail(email.trim())
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+  if (error) {
+    console.error('inviteUserByEmail error:', JSON.stringify(error))
+    return NextResponse.json({ error: error.message || JSON.stringify(error) }, { status: 400 })
+  }
 
   // Upsert profile con el rol correcto (el trigger crea uno con 'atencion' por defecto)
   await supabase.from('user_profiles').upsert({
