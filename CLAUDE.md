@@ -203,7 +203,9 @@ created_at      timestamptz
 | taller | Solo conversaciones con sus etiquetas asignadas | No |
 | atencion | Sin restricciones (por defecto) | No |
 
-El filtrado se hace en `app/(dashboard)/bandeja/layout.tsx` según `role_label_access`.
+El filtrado se hace en `app/(dashboard)/bandeja/layout.tsx` según `user_groups` + `group_label_access`.
+
+**Importante:** `role_label_access` fue reemplazado por el sistema de grupos. No existe en el código — eliminar si aparece en algún fork antiguo.
 
 ---
 
@@ -237,6 +239,16 @@ La lista de números permitidos en Meta Developer Portal debe usar este mismo fo
 ### Incrementar unread_count
 Supabase no permite `unread_count + 1` en `.update()`. La solución es seleccionar el valor actual en la misma query de conversación y pasar `currentUnread + 1`.
 
+### Flujo de invitación de usuarios
+Supabase usa **implicit flow** para invitaciones — los tokens llegan en el hash de la URL (`#access_token=...`), no como query params. El hash nunca llega al servidor. El flujo es:
+1. `/admin` llama `generateLink({ type: 'invite' })` → muestra el link en pantalla (sin SMTP)
+2. El invitado abre el link → Supabase verifica → redirige a `[site_url]#access_token=...`
+3. El middleware manda a `/login`, que detecta el hash y redirige a `/auth/callback`
+4. `/auth/callback` (client component) lee el hash, llama `setSession()`, redirige a `/update-password`
+5. El usuario crea su contraseña y entra a la bandeja
+
+`@supabase/ssr` no procesa el hash automáticamente — hay que leerlo manualmente con `URLSearchParams`.
+
 ### Evitar conversaciones duplicadas
 Al crear una conversación desde la UI (`POST /api/conversations`), usar `.order(...).limit(1).maybeSingle()` para buscar la activa existente. Sin `limit(1)`, si hay múltiples activas `maybeSingle()` devuelve error silencioso y se crea una nueva.
 
@@ -255,43 +267,63 @@ Al crear una conversación desde la UI (`POST /api/conversations`), usar `.order
 │   │   │   ├── page.tsx           -- empty state
 │   │   │   └── [id]/page.tsx      -- vista de conversación (force-dynamic)
 │   │   ├── proyectos/page.tsx     -- placeholder
-│   │   ├── grupos/page.tsx        -- placeholder
-│   │   └── perfil/page.tsx        -- usuario, etiquetas, permisos por rol
+│   │   ├── grupos/page.tsx        -- canales de chat interno (Realtime)
+│   │   ├── admin/page.tsx         -- dashboard admin: equipo, grupos, etiquetas
+│   │   └── perfil/page.tsx        -- info de usuario + acceso a admin
+│   ├── auth/callback/page.tsx     -- procesa token de invitación (implicit flow)
+│   ├── update-password/page.tsx   -- crear contraseña tras invitación
 │   └── api/
-│       ├── webhooks/whatsapp/     -- GET verificación + POST mensajes entrantes
+│       ├── webhooks/whatsapp/     -- GET verificación + POST mensajes entrantes + push
 │       ├── messages/send/         -- enviar mensaje saliente
 │       ├── conversations/         -- POST crear conversación
 │       ├── conversations/[id]/    -- PATCH (status/mode/unread) + DELETE
 │       ├── conversations/[id]/labels/ -- POST + DELETE etiquetas en conversación
 │       ├── labels/                -- GET + POST
-│       ├── labels/[id]/           -- DELETE
-│       └── role-label-access/     -- POST + DELETE (solo owner/admin)
+│       ├── labels/[id]/           -- PATCH (editar) + DELETE
+│       ├── users/                 -- GET lista + POST invitar (genera link)
+│       ├── users/[id]/            -- PATCH rol + DELETE usuario
+│       ├── groups/                -- GET + POST grupos
+│       ├── groups/[id]/           -- PATCH + DELETE
+│       ├── groups/[id]/labels/    -- POST + DELETE etiquetas del grupo
+│       ├── groups/[id]/members/   -- POST + DELETE miembros del grupo
+│       ├── channels/              -- GET + POST canales de chat interno
+│       ├── channels/[id]/messages/ -- GET mensajes + POST enviar
+│       └── push/subscribe/        -- POST registrar + DELETE desregistrar suscripción push
 ├── components/
 │   ├── inbox/
 │   │   ├── BandejaShell.tsx       -- layout mobile: sidebar ↔ conversación
-│   │   ├── ConversationList.tsx   -- lista con realtime, búsqueda y filtros
+│   │   ├── ConversationList.tsx   -- lista con realtime, búsqueda y filtros por etiqueta
 │   │   ├── ConversationItem.tsx   -- swipe left (archivar/eliminar), swipe right (etiquetar)
 │   │   └── NewChatModal.tsx
 │   ├── conversation/
-│   │   ├── ConversationHeader.tsx
-│   │   ├── MessageBubble.tsx
+│   │   ├── ConversationShell.tsx  -- wrapper client con estado de búsqueda
+│   │   ├── ConversationHeader.tsx -- header con búsqueda en el chat
+│   │   ├── MessageThread.tsx      -- mensajes con highlight de búsqueda + soporte media
 │   │   └── MessageInput.tsx
+│   ├── chat/
+│   │   └── InternalChat.tsx       -- canales de chat interno con Realtime
+│   ├── admin/
+│   │   ├── UsersManager.tsx       -- CRUD usuarios + invitación por link
+│   │   └── GroupsManager.tsx      -- CRUD grupos con etiquetas y miembros
 │   └── ui/
 │       ├── LogoMark.tsx           -- SVG 3 barras Milpa (viewBox "0 0 18 18")
-│       ├── BottomNav.tsx          -- nav mobile (Bandeja, Proyectos, Grupos, Perfil)
+│       ├── BottomNav.tsx          -- nav mobile
+│       ├── TopNav.tsx             -- nav desktop
 │       ├── LogoutButton.tsx
-│       ├── LabelsManager.tsx      -- client component, CRUD etiquetas
-│       └── RoleAccessManager.tsx  -- client component, permisos por rol
+│       ├── LabelsManager.tsx      -- CRUD etiquetas con edición inline
+│       └── PushSubscriber.tsx     -- registra suscripción push al cargar
 ├── lib/
-│   ├── whatsapp.ts                -- cliente Meta Cloud API + verifyWebhookSignature
+│   ├── whatsapp.ts                -- cliente Meta Cloud API + verifyWebhookSignature + downloadMediaBuffer
 │   ├── anthropic.ts               -- cliente Anthropic
+│   ├── push.ts                    -- sendPushToAll() via web-push
 │   ├── avatar-color.ts            -- color determinista por nombre (hash → 8 colores)
 │   ├── label-color.ts             -- paleta de 9 colores para etiquetas
 │   ├── supabase/
 │   │   ├── client.ts              -- createClient() para browser
 │   │   └── server.ts              -- createClient() SSR + createServiceClient() service role
 │   └── bot/qualify.ts             -- lógica de calificación con Claude
-├── supabase/migrations/           -- SQL aplicado en Supabase (en orden numérico)
+├── supabase/migrations/           -- SQL aplicado en Supabase (en orden numérico, 001→009)
+├── docs/SETUP.md                  -- guía de implementación paso a paso
 ├── types/index.ts                 -- tipos TypeScript del dominio
 ├── middleware.ts                  -- protege rutas, redirige a /login
 └── CLAUDE.md
@@ -311,39 +343,44 @@ Al crear una conversación desde la UI (`POST /api/conversations`), usar `.order
 
 ---
 
-## Estado actual (junio 2025)
+## Estado actual (junio 2026)
 
-### ✅ Funciona en producción (Vercel)
-- Recepción de mensajes WhatsApp → Supabase → UI en tiempo real
-- Envío de mensajes desde la interfaz → WhatsApp
+### ✅ Funciona en producción (chat.milpa.cloud)
+- Recepción y envío de mensajes WhatsApp ↔ UI en tiempo real (Supabase Realtime)
+- Soporte de imágenes y media (Supabase Storage bucket `media`)
 - Autenticación con Supabase Auth (email/password)
-- Bandeja multiusuario con Realtime
-- UI mobile-first: bottom nav, swipe gestures, full-screen en conversación
-- Etiquetas de conversación (crear/eliminar desde perfil)
-- Permisos por rol basados en etiquetas
+- Flujo de invitación de usuarios por link (sin depender de SMTP)
+- Dashboard de administración `/admin`: equipo, grupos, etiquetas
+- Sistema de grupos: filtrado de conversaciones por etiquetas por grupo de usuarios
+- Bandeja multiusuario: búsqueda, filtros por etiqueta, archivados
+- Swipe gestures en mobile (archivar/eliminar/etiquetar)
+- Búsqueda dentro de cada conversación con highlight
+- Canales de chat interno entre el equipo (`/grupos`)
+- Notificaciones push (PWA, service worker, VAPID)
 - Avatares con color determinista
-- Badges de no leídos + preview del último mensaje
+- Badges de no leídos + preview + etiquetas en lista
 - Archivar / eliminar conversaciones
-- Búsqueda y filtros en la bandeja
-- PWA (manifest.json + íconos)
+- PWA completa (manifest, apple-touch-icon, favicon emerald)
 
 ### 🔲 Pendiente
-- Notas internas en conversaciones (tabla `internal_notes` ya existe)
-- Módulo de proyectos (tabla `projects` ya existe)
-- Chatbot de calificación (código en `lib/bot/qualify.ts`, necesita `ANTHROPIC_API_KEY` en Vercel)
-- Soporte para imágenes en mensajes (webhook solo procesa texto actualmente)
-- Módulo de proveedores
-- Notificaciones push (service worker)
+- Notas internas en conversaciones (tabla `internal_notes` ya existe en DB)
+- Módulo de proyectos (tabla `projects` ya existe en DB)
+- Chatbot de calificación (código en `lib/bot/qualify.ts`, activar con `ANTHROPIC_API_KEY`)
+- Nombre del agente en mensajes salientes (quién del equipo respondió)
 - Automatizaciones (cambio de estatus → WhatsApp al cliente)
-- Token de acceso permanente de WhatsApp (el actual puede expirar)
+- Integración con ERP Milpa (contactos compartidos vía Supabase)
+
+### ⚠️ Limitaciones conocidas de WhatsApp Business API
+- No se pueden crear grupos con clientes externos
+- Iniciar conversaciones con números nuevos requiere templates aprobados por Meta (costo por mensaje)
+- Todos los mensajes salen del mismo número de empresa, sin identidad de agente visible para el cliente
+- Ideal para negocios que reciben muchos mensajes entrantes, no para outreach masivo
 
 ---
 
 ## Contexto adicional
 
-- Los proyectos duran semanas o meses — la conversación con el cliente es continua
-- El taller tiene 7-10 personas en administración
-- WhatsApp es el canal principal tanto con clientes como con proveedores
-- La mayoría de los clientes buscan muebles a medida — no son empresas
-- Este módulo debe eventualmente integrarse con el resto de Milpa (inventario, cotizaciones, CFDI)
-- **Prioridad:** que funcione para Huayapam primero. Generalizar después.
+- Este módulo es de Milpa Studio internamente — no es de Huayapam
+- Para dar Taller a un cliente: fork del repo + nuevo Supabase + nuevo número WhatsApp + nuevo Vercel
+- Ver `docs/SETUP.md` para instrucciones paso a paso de implementación
+- La integración con el ERP de Milpa es futura — actualmente son deployments independientes

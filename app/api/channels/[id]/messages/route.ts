@@ -23,7 +23,7 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
 
   if (!messages?.length) return NextResponse.json([])
 
-  const userIds = [...new Set(messages.map((m) => m.user_id).filter(Boolean))]
+  const userIds = Array.from(new Set(messages.map((m) => m.user_id).filter(Boolean)))
   const { data: profiles } = await supabase
     .from('user_profiles')
     .select('id, name')
