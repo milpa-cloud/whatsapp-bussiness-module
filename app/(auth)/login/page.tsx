@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import LogoMark from '@/components/ui/LogoMark'
@@ -12,6 +12,15 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const router = useRouter()
   const supabase = createClient()
+
+  useEffect(() => {
+    // Si llegamos aquí con un invite token en el hash, procesarlo
+    if (typeof window === 'undefined') return
+    const hash = window.location.hash
+    if (hash.includes('type=invite') || hash.includes('access_token=')) {
+      router.replace('/auth/callback' + hash)
+    }
+  }, [router])
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
