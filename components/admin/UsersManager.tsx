@@ -45,13 +45,13 @@ export default function UsersManager({
   const [inviteRole, setInviteRole] = useState('atencion')
   const [inviting, setInviting] = useState(false)
   const [inviteError, setInviteError] = useState<string | null>(null)
-  const [inviteSent, setInviteSent] = useState(false)
+  const [inviteLink, setInviteLink] = useState<string | null>(null)
 
   async function handleInvite() {
     if (!inviteEmail.trim()) return
     setInviting(true)
     setInviteError(null)
-    setInviteSent(false)
+    setInviteLink(null)
 
     const res = await fetch('/api/users', {
       method: 'POST',
@@ -59,16 +59,16 @@ export default function UsersManager({
       body: JSON.stringify({ email: inviteEmail, name: inviteName, role: inviteRole }),
     })
 
+    const data = await res.json()
+
     if (res.ok) {
-      setInviteSent(true)
+      setInviteLink(data.inviteLink)
       setInviteEmail('')
       setInviteName('')
       setInviteRole('atencion')
-      // Refetch users
       const updated = await fetch('/api/users').then((r) => r.json())
       setUsers(updated)
     } else {
-      const data = await res.json()
       setInviteError(data.error ?? 'Error al invitar')
     }
     setInviting(false)
@@ -162,7 +162,7 @@ export default function UsersManager({
         </div>
 
         <p className="text-xs text-stone-400">
-          Le llegará un correo para que cree su contraseña.
+          Se genera un link que puedes enviarle por WhatsApp o correo.
         </p>
 
         <input
@@ -197,7 +197,17 @@ export default function UsersManager({
         </div>
 
         {inviteError && <p className="text-xs text-red-500">{inviteError}</p>}
-        {inviteSent && <p className="text-xs text-emerald-600">Invitación enviada.</p>}
+        {inviteLink && (
+          <div className="space-y-1">
+            <p className="text-xs text-emerald-600 font-medium">Link generado — cópialo y envíalo:</p>
+            <div
+              onClick={() => { navigator.clipboard.writeText(inviteLink); alert('Link copiado') }}
+              className="text-xs text-stone-500 bg-stone-100 rounded-lg px-3 py-2 cursor-pointer hover:bg-stone-200 break-all transition-colors"
+            >
+              {inviteLink}
+            </div>
+          </div>
+        )}
 
         <button
           onClick={handleInvite}

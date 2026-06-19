@@ -51,18 +51,21 @@ export async function POST(request: NextRequest) {
   const { email, name, role } = body
   if (!email?.trim()) return NextResponse.json({ error: 'Email requerido' }, { status: 400 })
 
-  const { data, error } = await supabase.auth.admin.inviteUserByEmail(email.trim())
+  const { data, error } = await supabase.auth.admin.generateLink({
+    type: 'invite',
+    email: email.trim(),
+    options: { redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback` },
+  })
   if (error) {
-    console.error('inviteUserByEmail error:', JSON.stringify(error))
+    console.error('generateLink error:', JSON.stringify(error))
     return NextResponse.json({ error: error.message || JSON.stringify(error) }, { status: 400 })
   }
 
-  // Upsert profile con el rol correcto (el trigger crea uno con 'atencion' por defecto)
   await supabase.from('user_profiles').upsert({
     id: data.user.id,
     name: name?.trim() || email.split('@')[0],
     role: role ?? 'atencion',
   })
 
-  return NextResponse.json({ ok: true, id: data.user.id })
+  return NextResponse.json({ ok: true, id: data.user.id, inviteLink: data.properties.action_link })
 }
