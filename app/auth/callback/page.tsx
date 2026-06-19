@@ -9,14 +9,22 @@ export default function AuthCallbackPage() {
 
   useEffect(() => {
     const supabase = createClient()
-    // Supabase detecta automáticamente el access_token en el hash y establece la sesión
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        router.replace('/update-password')
-      } else {
-        router.replace('/login?error=link_invalido')
-      }
-    })
+    const hash = window.location.hash
+    const params = new URLSearchParams(hash.replace('#', ''))
+    const access_token = params.get('access_token')
+    const refresh_token = params.get('refresh_token')
+
+    if (access_token && refresh_token) {
+      supabase.auth.setSession({ access_token, refresh_token }).then(({ error }) => {
+        if (error) {
+          router.replace('/login?error=link_invalido')
+        } else {
+          router.replace('/update-password')
+        }
+      })
+    } else {
+      router.replace('/login?error=link_invalido')
+    }
   }, [router])
 
   return (
