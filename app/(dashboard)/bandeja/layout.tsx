@@ -28,26 +28,39 @@ export default async function BandejaLayout({ children }: { children: React.Reac
   const role = profile?.role ?? 'atencion'
   const isAdmin = ['owner', 'admin'].includes(role)
 
-  // Para roles restringidos, aplicar filtro por etiquetas
-  let allowedLabelIds: string[] = []
-  if (!isAdmin) {
-    const { data: roleAccess } = await supabase
-      .from('role_label_access')
-      .select('label_id')
-      .eq('role', role)
-    allowedLabelIds = (roleAccess ?? []).map((r) => r.label_id)
-  }
-
   const allConversations = (conversations ?? []) as ConversationWithContact[]
+  let visibleConversations = allConversations
 
-  // Si hay restricciones configuradas, filtrar conversaciones
-  const visibleConversations =
-    isAdmin || allowedLabelIds.length === 0
-      ? allConversations
-      : allConversations.filter((conv) => {
+  if (!isAdmin) {
+    // Obtener grupos del usuario
+    const { data: userGroupRows } = await supabase
+      .from('user_groups')
+      .select('group_id')
+      .eq('user_id', user!.id)
+
+    if (userGroupRows && userGroupRows.length > 0) {
+      const groupIds = userGroupRows.map((r) => r.group_id)
+
+      const { data: groupLabelRows } = await supabase
+        .from('group_label_access')
+        .select('label_id')
+        .in('group_id', groupIds)
+
+      const allowedLabelIds = new Set((groupLabelRows ?? []).map((r) => r.label_id))
+
+      if (allowedLabelIds.size > 0) {
+        visibleConversations = allConversations.filter((conv) => {
           const convLabelIds = conv.conversation_labels?.map((cl) => cl.label_id) ?? []
-          return convLabelIds.some((id) => allowedLabelIds.includes(id))
+          return convLabelIds.some((id) => allowedLabelIds.has(id))
         })
+      }
+      // Si el grupo no tiene etiquetas asignadas, el usuario no ve nada
+      else {
+        visibleConversations = []
+      }
+    }
+    // Si no tiene grupos, ve todo (usuario sin restricciones)
+  }
 
   return (
     <BandejaShell

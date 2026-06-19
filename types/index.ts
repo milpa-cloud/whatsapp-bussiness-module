@@ -79,6 +79,12 @@ export interface UserProfile {
   role: UserRole
 }
 
+export interface Group {
+  id: string
+  name: string
+  created_at: string
+}
+
 export interface WhatsAppWebhookPayload {
   object: string
   entry: WhatsAppEntry[]
