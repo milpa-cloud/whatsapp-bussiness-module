@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { verifyWebhookSignature, downloadMediaBuffer } from '@/lib/whatsapp'
 import { createServiceClient } from '@/lib/supabase/server'
 import { handleBotTurn } from '@/lib/bot/qualify'
+import { sendPushToAll } from '@/lib/push'
 import type { WhatsAppWebhookPayload, WhatsAppInboundMessage } from '@/types'
 
 // GET — verificación del webhook con Meta
@@ -239,7 +240,17 @@ async function processIncomingMessages(payload: WhatsAppWebhookPayload) {
           })
           .eq('id', conversationId)
 
-        // 6. Bot (solo para mensajes de texto)
+        // 6. Push notification al equipo
+        if (conversationMode === 'human') {
+          sendPushToAll({
+            title: waContactName || phone,
+            body: preview,
+            url: `/bandeja/${conversationId}`,
+            tag: conversationId,
+          }).catch(() => {})
+        }
+
+        // 7. Bot (solo para mensajes de texto)
         if (waMessage.type === 'text') {
           if (conversationMode === 'bot' && process.env.ANTHROPIC_API_KEY) {
             try {

@@ -6,6 +6,7 @@ import LogoMark from '@/components/ui/LogoMark'
 import LogoutButton from '@/components/ui/LogoutButton'
 import BottomNav from '@/components/ui/BottomNav'
 import TopNav from '@/components/ui/TopNav'
+import PushSubscriber from '@/components/ui/PushSubscriber'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -42,6 +43,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         {children}
       </main>
       <BottomNav isAdmin={isAdmin} />
+      <PushSubscriber />
     </div>
   )
 }
