@@ -7,7 +7,7 @@ import { MessageSquare, FolderOpen, Users, User, Settings } from 'lucide-react'
 const NAV_ITEMS = [
   { href: '/bandeja', label: 'Bandeja', icon: MessageSquare },
   { href: '/proyectos', label: 'Proyectos', icon: FolderOpen },
-  { href: '/grupos', label: 'Grupos', icon: Users },
+  { href: '/grupos', label: 'Canales', icon: Users },
   { href: '/perfil', label: 'Perfil', icon: User },
 ]
 
